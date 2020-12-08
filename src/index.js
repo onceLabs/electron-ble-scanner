@@ -111,9 +111,11 @@ const scan = () => {
     filters.push({optionalServices: {BLE_SERVICE_UUID}});
     options.acceptAllDevices = false;
     options.filters = filters;
-    navigator.bluetooth.requestDevice({
-        filters: [{ name: "BLUEBIRD" }],
-        optionalServices: ["00003000-c356-78ab-3c46-339399e84975"],//You have to include this, even if it's not acutally advertised so you can discoverServices after connecting
+    navigator.bluetooth.requestDevice({//Set all device to true and then provide a service.  This gives you the  most freedom search wise
+        acceptAllDevices: true,
+        optionalServices: ["00003000-c356-78ab-3c46-339399e84975"],
+        // You have to include this, even if it's not acutally advertised so you can discoverServices easily after connecting. Otherwise you have to specify the services you want to discover
+        // It does need to be a service that the device actually has though
       })
     .then(device => {
         ble_device = device;
