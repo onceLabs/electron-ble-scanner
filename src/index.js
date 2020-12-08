@@ -2,8 +2,9 @@
 let ble_device;
 let ble_server;
 let ble_service;
-let ble_rw_characteristics;
-let ble_nr_characteristics;
+let ble_rw_characteristic;
+let ble_nr_characteristic;
+
 //these are my testing device, replace you own.
 const BLE_SERVICE_UUID = 'f5dc3761-ce15-4449-8cfa-7af6ad175056';
 const BLE_RW_CHARACTERISTIC_UUID = 'f5dc3762-ce15-4449-8cfa-7af6ad175056';
@@ -53,25 +54,35 @@ const connectToDevice = _device => {
         console.log("server", server)
         status_log("Connected to GATT server");
         ble_server = server;
-        return server.getPrimaryService(BLE_SERVICE_UUID);
+        // You have get all primary if you include optionalServices when you perform the search,
+        // otherwise you will get a privacy violation here
+        return server.getPrimaryServices();
     })				
-    .then(service => {
-        console.log("service", service)
-        ble_service = service;
-        return Promise.all([
-            ble_service.getCharacteristic(BLE_NR_CHARACTERISTIC_UUID)
-                .then(characteristic => {
-                    ble_nr_characteristics = characteristic;
-                    ble_nr_characteristics.startNotifications();
-                    ble_nr_characteristics.addEventListener('characteristicvaluechanged',handleNotifications);
-                    console.log("characteristic:", characteristic);
-                }),
-            ble_service.getCharacteristic(BLE_RW_CHARACTERISTIC_UUID)
-                .then(characteristic => {
-                ble_rw_characteristics = characteristic;
-                console.log("characteristic:", characteristic);
+    .then(services => {
+        services.forEach((service) => {
+            service.getCharacteristics().then((characteristics) => {
+              console.log('>> Service: ' + service.uuid)
+              characteristics.forEach((characteristic) => {
+                console.log('>>>> Characteristic: ' + characteristic.uuid)
+              })
             })
-        ])
+          })
+        // console.log("service", service)
+        // ble_service = service;
+        // return Promise.all([
+        //     ble_service.getCharacteristic(BLE_NR_CHARACTERISTIC_UUID)
+        //         .then(characteristic => {
+        //             ble_nr_characteristic = characteristic;
+        //             ble_nr_characteristic.startNotifications();
+        //             ble_nr_characteristic.addEventListener('characteristicvaluechanged',handleNotifications);
+        //             console.log("characteristic:", characteristic);
+        //         }),
+        //     ble_service.getCharacteristic(BLE_RW_CHARACTERISTIC_UUID)
+        //         .then(characteristic => {
+        //         ble_rw_characteristic = characteristic;
+        //         console.log("characteristic:", characteristic);
+        //     })
+        // ])
     })
     .then( () => {
         connecting = false;
@@ -94,8 +105,16 @@ const scan = () => {
     window.api.send('scan', 'scan');
     status_log("Now scanning");
     let options = {};
-    options.acceptAllDevices = true;
-    navigator.bluetooth.requestDevice(options)
+    let filters = [];
+
+    filters.push({namePrefix: "BLUEBIRD"});
+    filters.push({optionalServices: {BLE_SERVICE_UUID}});
+    options.acceptAllDevices = false;
+    options.filters = filters;
+    navigator.bluetooth.requestDevice({
+        filters: [{ name: "BLUEBIRD" }],
+        optionalServices: ["00003000-c356-78ab-3c46-339399e84975"],//You have to include this, even if it's not acutally advertised so you can discoverServices after connecting
+      })
     .then(device => {
         ble_device = device;
         ble_device.addEventListener('gattserverdisconnected', onDisconnected);
@@ -127,10 +146,9 @@ const setConnectDeviceId = (deviceId) => {
 //disconnection event both manually and incidentally
 const onDisconnected = () => {
     status_log('Bluetooth Device disconnected from device.');
+    
     //sometimes event handler broken 
     if(deviceToConnect !== null && !connecting){
-
-
         exponentialBackoff(30, 3,
             () => {
                 //sometimes dead ble_device continue to reconnect
@@ -148,7 +166,6 @@ const onDisconnected = () => {
 
     if(connecting){
         ble_device.gatt.disconnect();
-
     }
 }
 

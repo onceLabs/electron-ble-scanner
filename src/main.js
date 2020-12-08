@@ -34,7 +34,7 @@ app.on('ready', () => {
     event.preventDefault();
 
     //All discovered devices at that time, are stored in array
-    console.log(` ${JSON.stringify(deviceList)}`);
+    //console.log(` ${JSON.stringify(deviceList)}`);
     for (let i in deviceList){
       browserWindow.webContents.send('discoverd-device', JSON.stringify(deviceList[i]));
       if(deviceToConnect !== null){
