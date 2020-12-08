@@ -109,11 +109,9 @@
 				//to receive device list in main, notify to main
 				window.api.send('scan', 'scan');
 				status_log("Now scanning");
-				navigator.bluetooth.requestDevice({
-					filters: [{
-						services: [BLE_SERVICE_UUID] //only small char-case
-					}]
-				})
+				let options = {};
+    			options.acceptAllDevices = true;
+				navigator.bluetooth.requestDevice(options)
 				.then(device => {
 					ble_device = device;
 					ble_device.addEventListener('gattserverdisconnected', onDisconnected);

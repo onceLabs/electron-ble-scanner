@@ -20,7 +20,11 @@ app.on('ready', () => {
   browserWindow.webContents.openDevTools();
 
   //open page
-  browserWindow.loadFile('index.html');
+  browserWindow.loadURL(url.format({
+    pathname: path.join(__dirname, 'index.html'),
+    protocol: 'file:',
+    slashes: true
+  }))
 
   //device Id to connect set by renderer
   let deviceToConnect = null;
