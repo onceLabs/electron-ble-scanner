@@ -34,7 +34,7 @@ app.on('ready', () => {
     event.preventDefault();
 
     //All discovered devices at that time, are stored in array
-    //console.log(` ${JSON.stringify(deviceList)}`);
+    //console.log(` ${JSON.stringify(event)}`);
     for (let i in deviceList){
       browserWindow.webContents.send('discoverd-device', JSON.stringify(deviceList[i]));
       if(deviceToConnect !== null){
@@ -46,6 +46,22 @@ app.on('ready', () => {
       }
     }
   }
+
+  ipcMain.on('newAdv', (event, arg) => {
+      console.log('  New Advertisement');
+      console.log(arg);
+  })
+
+  const logDataView = (labelOfDataSource, key, valueDataView) => {
+    const hexString = [...new Uint8Array(valueDataView.buffer)].map(b => {
+      return b.toString(16).padStart(2, '0');
+    }).join(' ');
+    const textDecoder = new TextDecoder('ascii');
+    const asciiString = textDecoder.decode(valueDataView.buffer);
+    console.log(`  ${labelOfDataSource} Data: ` + key +
+        '\n    (Hex) ' + hexString +
+        '\n    (ASCII) ' + asciiString);
+  };
 
   //set listener for callback
   ipcMain.on('scan', (event, arg) => {

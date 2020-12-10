@@ -5,6 +5,8 @@ let ble_service;
 let ble_rw_characteristic;
 let ble_nr_characteristic;
 
+let current_device;
+
 //these are my testing device, replace you own.
 const BLE_SERVICE_UUID = 'f5dc3761-ce15-4449-8cfa-7af6ad175056';
 const BLE_RW_CHARACTERISTIC_UUID = 'f5dc3762-ce15-4449-8cfa-7af6ad175056';
@@ -45,8 +47,25 @@ let deviceToConnect = null;
 //detect connecting or not
 let connecting = false;
 
+const advRecieved = event => {
+    
+    var advPacket = {};
+    advPacket.rssi = event.rssi;
+    advPacket.name = event.device.name;
+    advPacket.appearance = event.appearance;
+    advPacket.deviceId = event.device.id;
+    advPacket.txPower = event.txPower;
+    advPacket.serviceUUIDs = event.uuids;
+    advPacket.manufacturerData = event.manufacturerData;
+    advPacket.serviceData = event.serviceData;
+
+    status_log(JSON.stringify(advPacket));//send to ui log
+    window.api.send('newAdv', advPacket);
+}
+
 //this function called from requestDevice and disconnection event
 const connectToDevice = _device => {
+
     connecting = true;
     status_log("Connecting to device");
     return _device.gatt.connect()
@@ -100,6 +119,7 @@ const scan = () => {
     disconnect();
     //initialize list
     document.getElementById('deviceList').innerHTML = '';
+
     discoverd_id = [];
     //to receive device list in main, notify to main
     window.api.send('scan', 'scan');
@@ -111,6 +131,7 @@ const scan = () => {
     filters.push({optionalServices: {BLE_SERVICE_UUID}});
     options.acceptAllDevices = false;
     options.filters = filters;
+
     navigator.bluetooth.requestDevice({//Set all device to true and then provide a service.  This gives you the  most freedom search wise
         acceptAllDevices: true,
         optionalServices: ["00003000-c356-78ab-3c46-339399e84975"],
@@ -118,6 +139,16 @@ const scan = () => {
         // It does need to be a service that the device actually has though
       })
     .then(device => {
+
+        if (current_device){
+            current_device.removeEventListener('advertisementreceived', advRecieved);
+        }
+        current_device = device;
+        device.addEventListener('advertisementreceived', advRecieved);
+        console.log('Watching advertisements from "' + device.name + '"...');
+        return device.watchAdvertisements();
+
+        // Initiate connection
         ble_device = device;
         ble_device.addEventListener('gattserverdisconnected', onDisconnected);
         console.log("device", device);
@@ -126,11 +157,36 @@ const scan = () => {
     .catch(error => {
         console.log(`server func error: ${error}`);
     });
+
+}
+
+//Scan start by user
+const monitorAdvertisements = () => {
+
+    navigator.bluetooth.requestDevice({//Set all device to true and then provide a service.  This gives you the  most freedom search wise
+        acceptAllDevices: true,
+        optionalServices: ["00003000-c356-78ab-3c46-339399e84975"],
+        // You have to include this, even if it's not acutally advertised so you can discoverServices easily after connecting. Otherwise you have to specify the services you want to discover
+        // It does need to be a service that the device actually has though
+      })
+    .then(device => {
+
+        if (current_device){
+            current_device.removeEventListener('advertisementreceived', advRecieved);
+        }
+        current_device = device;
+        device.addEventListener('advertisementreceived', advRecieved);        
+        console.log('Watching advertisements from "' + device.name + '"...');
+        return device.watchAdvertisements();
+    })
+    .catch(error => {
+        console.log(`server func error: ${error}`);
+    });
+
 }
 
 //receive device information
 window.api.on('discoverd-device', (message) => {
-    //status_log(message);
     const device = JSON.parse(message);
     if(!discoverd_id.includes(device.deviceId)){
         discoverd_id.push(device.deviceId);
@@ -140,6 +196,7 @@ window.api.on('discoverd-device', (message) => {
 
 //send deviceId to renderer
 const setConnectDeviceId = (deviceId) => {
+    monitorAdvertisements();
     deviceToConnect = deviceId;
     status_log('Trying to connect ' + deviceId);
     window.api.send('connectDeviceId', deviceId)  
